@@ -11,5 +11,17 @@ CHIP Xor {
     OUT out;
 
     PARTS:
-    //// Replace this comment with your code.
+    /* My Implementation 
+    Not(in=a, out=not-a);
+    Not(in=b, out=not-b);
+    And(a=not-a, b=b, out=first);
+    And(a=not-b, b=a, out=second);
+    Or(a=first, b=second, out=out);
+    */
+
+    /* Efficient Implementation */
+    Nand(a=a,b=b,out=f); // unlimited fan-out
+    Nand(a=f, b=a, out=g);
+    Nand(a=f, b=b, out=h);
+    Nand(a=g, b=h, out=out);
 }

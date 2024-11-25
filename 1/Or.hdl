@@ -11,5 +11,10 @@ CHIP Or {
     OUT out;
 
     PARTS:
-    //// Replace this comment with your code.
+    Not(in=a, out=not-a);
+    Not(in=b, out=not-b);
+    Nand(a=not-a, b=not-b, out=out);
+    /* My implementation didn't combine AND & NOT into NAND saving a gate */
+    //And(a=not-a, b=not-b, out=mid);
+    //Not(in=mid, out=out);
 }
