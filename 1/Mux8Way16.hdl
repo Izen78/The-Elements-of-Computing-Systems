@@ -20,5 +20,14 @@ CHIP Mux8Way16 {
     OUT out[16];
 
     PARTS:
-    //// Replace this comment with your code.
+    /* can't use ranges [0..1] */
+    Mux16(a=a, b=b, sel=sel[0], out=first); // a or b
+    Mux16(a=c, b=d, sel=sel[0], out=second); // c or d
+    Mux16(a=e, b=f, sel=sel[0], out=third); // e or f
+    Mux16(a=g, b=h, sel=sel[0], out=fourth); // g or h
+
+    Mux16(a=first, b=second, sel=sel[1], out=first2); // a vs c or b vs d
+    Mux16(a=third, b=fourth, sel=sel[1], out=second2);
+
+    Mux16(a=first2, b=second2, sel=sel[2], out=out);
 }
