@@ -1,0 +1,119 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM = 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+
+    /* THIS IS NOT THE MOST EFFICIENT */
+    // I swapped the M and D bits around in the ddd part and did Or(a=.., b=true) which is just a constant and doesn't actually return a
+    // I also didn't include type in a lot of operations so didn't specify whether an operation was allowed to happen depending on if it's C or A-instruction.
+
+
+
+
+
+
+    /* Decode Logic - gather all control bits */ 
+    /* For Mux1, get A vs C instruction type control bit (i) */
+    And(a=instruction[15],b=true,out=type); // type=1 is C-instruction and type=0 is A-instruction
+    /* For Mux2, get a control bit (a) */
+    And(a=instruction[12],b=type,out=a-or-m-control); // a-or-m-control=1 use M else use A
+    /* For PC, get load control bit from instruction and ALU (load from all jump instructions based on zr and ng) */
+    Not(in=zr,out=not-zr);
+    Not(in=ng,out=not-ng);
+    /* JEQ */
+    And(a=instruction[1],b=zr,out=jeq-true);
+    /* JGE */
+    And(a=instruction[0], b=ng, out=jge-part);
+    And(a=jeq-true, b=jge-part, out=jge-true);
+    /* JNE */
+    And(a=instruction[2], b=instruction[0], out=jne-part);
+    And(a=jne-part, b=not-zr, out=jne-true);
+    /* JLT */
+    Not(in=instruction[0],out=not-j0);
+    And(a=instruction[2],b=not-j0,out=jlt-part);
+    And(a=not-zr, b=ng, out=jlt-cond);
+    And(a=jlt-part,b=jlt-cond,out=jlt-true);
+    /* JGT */
+    Not(in=instruction[2],out=not-j2);
+    And(a=instruction[0],b=not-j2, out=jgt-part);
+    And(a=not-zr, b=not-ng, out=jgt-cond);
+    And(a=jgt-part, b=jgt-cond, out=jgt-true);
+    /* JLE */
+    And(a=instruction[2],b=instruction[1],out=jle-part);
+    And(a=jle-part,b=not-j0, out=jle-part2);
+    And(a=zr,b=ng,out=jle-cond);
+    And(a=jle-part2,b=jle-cond,out=jle-true);
+    /* JMP */
+    And(a=instruction[0],b=instruction[1],out=jmp-part);
+    And(a=jmp-part, b=instruction[2], out=jmp-true);
+
+    Or8Way(in[0]=false, in[1]=jeq-true, in[2]=jge-true, in[3]=jne-true, in[4]=jlt-true, in[5]=jgt-true, in[6]=jle-true, in[7]=jmp-true, out=pc-part);
+    And(a=pc-part, b=type, out=pc-load);
+    // For AReg, get load control bit (d2)
+    Not(in=type, out=a-inst-load);
+    And(a=type, b=instruction[5],out=c-inst-load);
+    Or(a=a-inst-load, b=c-inst-load, out=a-reg-load);
+    // For DReg, get load control bit (d0)
+    And(a=instruction[4],b=type,out=d-reg-load);
+    // For ALU, get c control bits
+    And(a=instruction[6],b=type,out=no-control);
+    And(a=instruction[7],b=type,out=f-control);
+    And(a=instruction[8],b=type,out=ny-control);
+    And(a=instruction[9],b=type,out=zy-control);
+    And(a=instruction[10],b=type,out=nx-control);
+    And(a=instruction[11],b=type,out=zx-control);
+    // for writeM, get control d1 control bit (d1)
+    And(a=instruction[3],b=type,out=writeM-control);
+
+    /* CPU Circuitry */
+
+    /* TESTING writeM, addressM, pc, DRegister */
+    And(a=writeM-control, b=true, out=writeM);
+
+    Mux16(a=instruction,b=alu-out,sel=type,out=a-reg-sel);
+    ARegister(in=a-reg-sel, load=a-reg-load, out=a-reg-out);
+    And16(a=a-reg-out, b=true, out[0..14]=addressM);
+
+
+    PC(in=a-reg-out, inc=true, load=pc-load,reset=reset,out[0..14]=pc);
+
+    DRegister(in=alu-out, load=d-reg-load, out=d-reg-out);
+    Mux16(a=a-reg-out, b=inM, sel=a-or-m-control, out=a-or-m);
+    ALU(x=d-reg-out, y=a-or-m, zx=zx-control, nx=nx-control, zy=zy-control, ny=ny-control, f=f-control, no=no-control, zr=zr, ng=ng, out=alu-out, out=outM);
+    
+
+
+}
+
+
+
